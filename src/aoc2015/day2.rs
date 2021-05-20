@@ -1,3 +1,4 @@
+use crate::utils::AocResult;
 use std::str::FromStr;
 use thiserror::Error;
 
@@ -26,11 +27,12 @@ For example:
 All numbers in the elves' list are in feet. How many total square feet of
 wrapping paper should they order?
 */
-pub fn part1(input: &str) -> Result<u64, ParseDimensionError> {
+pub fn part1(input: &str) -> AocResult {
     input
         .lines()
         .map(|line| line.parse::<Dimensions>().map(wrapping_paper))
-        .sum()
+        .sum::<Result<i64, ParseDimensionError>>()
+        .map_err(|e| e.into())
 }
 
 /*
@@ -57,18 +59,19 @@ For example:
 
 How many total feet of ribbon should they order?
 */
-pub fn part2(input: &str) -> Result<u64, ParseDimensionError> {
+pub fn part2(input: &str) -> AocResult {
     // Iterate through lines and convert to dimensions, filtering out any
     // invalid ones. Map the result to the ribbon function and then
     // return the sum.
     input
         .lines()
         .map(|line| line.parse::<Dimensions>().map(ribbon))
-        .sum()
+        .sum::<Result<i64, ParseDimensionError>>()
+        .map_err(|e| e.into())
 }
 
 // Accept dimensions and return the total wrapping paper required.
-fn wrapping_paper(dimensions: Dimensions) -> u64 {
+fn wrapping_paper(dimensions: Dimensions) -> i64 {
     let Dimensions {
         length,
         width,
@@ -76,12 +79,12 @@ fn wrapping_paper(dimensions: Dimensions) -> u64 {
     } = dimensions;
     let areas = [length * width, width * height, length * height];
     let min = *areas.iter().min().expect("array has three elements");
-    let area: u64 = areas.iter().sum();
+    let area: i64 = areas.iter().sum();
     2 * area + min
 }
 
 // Accept dimensions and return the total ribbon needed.
-fn ribbon(dimensions: Dimensions) -> u64 {
+fn ribbon(dimensions: Dimensions) -> i64 {
     let Dimensions {
         length,
         width,
@@ -94,13 +97,13 @@ fn ribbon(dimensions: Dimensions) -> u64 {
 }
 
 struct Dimensions {
-    length: u64,
-    width: u64,
-    height: u64,
+    length: i64,
+    width: i64,
+    height: i64,
 }
 
 impl Dimensions {
-    fn new(length: u64, width: u64, height: u64) -> Self {
+    fn new(length: i64, width: i64, height: i64) -> Self {
         Self {
             length,
             width,
@@ -117,17 +120,36 @@ pub enum ParseDimensionError {
     TooManyDimensions,
     #[error("Dimensions must be an unsigned integer.")]
     InvalidType(#[from] std::num::ParseIntError),
+    #[error("Dimension is too large.")]
+    TooLargeDimension(#[from] std::num::TryFromIntError),
 }
 
 impl FromStr for Dimensions {
     type Err = ParseDimensionError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        // Divide the terms into length, width, and height and parse them into u64
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        use std::convert::TryFrom;
+
+        // Divide the terms into length, width, and height and parse them into i64
         let mut terms = s.splitn(3, 'x');
-        let length: u64 = terms.next().ok_or(Self::Err::MissingDimensions)?.parse()?;
-        let width: u64 = terms.next().ok_or(Self::Err::MissingDimensions)?.parse()?;
-        let height: u64 = terms.next().ok_or(Self::Err::MissingDimensions)?.parse()?;
+        let length = i64::try_from(
+            terms
+                .next()
+                .ok_or(Self::Err::MissingDimensions)?
+                .parse::<u64>()?,
+        )?;
+        let width = i64::try_from(
+            terms
+                .next()
+                .ok_or(Self::Err::MissingDimensions)?
+                .parse::<u64>()?,
+        )?;
+        let height = i64::try_from(
+            terms
+                .next()
+                .ok_or(Self::Err::MissingDimensions)?
+                .parse::<u64>()?,
+        )?;
 
         // Check that the terms have been exhausted
         if terms.next().is_some() {

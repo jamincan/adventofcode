@@ -1,3 +1,5 @@
+use crate::utils::AocResult;
+use std::convert::TryFrom;
 use thiserror::Error;
 
 /*
@@ -34,10 +36,14 @@ For example:
 
 To what floor do the instructions take Santa?
 */
-pub fn part1(input: &str) -> Result<i64, ParseDirectionError> {
+pub fn part1(input: &str) -> AocResult {
     // Since parse_directions returns -1 or 1 for each change in floor, summing
     // each direction should give the final floor
-    parse_directions(input).sum()
+    // Since part1 must return a Box<dyn Error>, sum needs to be explicitly
+    // typed and then the error converted into a Boxed error.
+    parse_directions(input)
+        .sum::<Result<i64, ParseDirectionError>>()
+        .map_err(|e| e.into())
 }
 
 /*
@@ -53,7 +59,7 @@ For example:
 What is the position of the character that causes Santa to first enter the
 basement?
 */
-pub fn part2(input: &str) -> Result<usize, Box<dyn std::error::Error>> {
+pub fn part2(input: &str) -> AocResult {
     // Iterate through directions, storing current floor
     let mut floor = 0;
     for (i, dir) in parse_directions(input).enumerate() {
@@ -64,7 +70,7 @@ pub fn part2(input: &str) -> Result<usize, Box<dyn std::error::Error>> {
         }
         // If floor goes below 0, short-circuit return
         if floor < 0 {
-            return Ok(i + 1);
+            return Ok(i64::try_from(i + 1)?);
         }
     }
     Err("Santa never enters the basement.".into())
