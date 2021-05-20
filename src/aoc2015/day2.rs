@@ -26,14 +26,10 @@ For example:
 All numbers in the elves' list are in feet. How many total square feet of
 wrapping paper should they order?
 */
-pub fn part1(input: &str) -> u64 {
-    // Iterate through lines and convert to dimensions, filtering out any
-    // invalid ones. Map the result to the wrapping_paper function and then
-    // return the sum.
+pub fn part1(input: &str) -> Result<u64, ParseDimensionError> {
     input
         .lines()
-        .filter_map(|input| input.parse::<Dimensions>().ok())
-        .map(wrapping_paper)
+        .map(|line| line.parse::<Dimensions>().map(wrapping_paper))
         .sum()
 }
 
@@ -61,14 +57,13 @@ For example:
 
 How many total feet of ribbon should they order?
 */
-pub fn part2(input: &str) -> u64 {
+pub fn part2(input: &str) -> Result<u64, ParseDimensionError> {
     // Iterate through lines and convert to dimensions, filtering out any
     // invalid ones. Map the result to the ribbon function and then
     // return the sum.
     input
         .lines()
-        .filter_map(|input| input.parse::<Dimensions>().ok())
-        .map(ribbon)
+        .map(|line| line.parse::<Dimensions>().map(ribbon))
         .sum()
 }
 
@@ -115,7 +110,7 @@ impl Dimensions {
 }
 
 #[derive(Debug, Error)]
-enum ParseDimensionError {
+pub enum ParseDimensionError {
     #[error("3 dimensions are required.")]
     MissingDimensions,
     #[error("More than 3 dimensions provided.")]
@@ -149,24 +144,31 @@ mod tests {
 
     #[test]
     fn part1_examples() {
-        assert_eq!(part1("2x3x4"), 58);
-        assert_eq!(part1("1x1x10"), 43);
+        assert_eq!(part1("2x3x4").unwrap(), 58);
+        assert_eq!(part1("1x1x10").unwrap(), 43);
+    }
+
+    #[test]
+    fn part1_errors() {
+        assert!(part1("2x3x4x5").is_err());
+        assert!(part1("2x3").is_err());
+        assert!(part1("-1x3x4").is_err());
     }
 
     #[test]
     fn part2_examples() {
-        assert_eq!(part2("2x3x4"), 34);
-        assert_eq!(part2("1x1x10"), 14);
+        assert_eq!(part2("2x3x4").unwrap(), 34);
+        assert_eq!(part2("1x1x10").unwrap(), 14);
     }
 
     #[test]
-    fn test_wrapping_paper() {
+    fn test_wrapping_paper_valid() {
         assert_eq!(wrapping_paper(Dimensions::new(2, 3, 4)), 58);
         assert_eq!(wrapping_paper(Dimensions::new(1, 1, 10)), 43);
     }
 
     #[test]
-    fn test_ribbon() {
+    fn test_ribbon_valid() {
         assert_eq!(ribbon(Dimensions::new(2, 3, 4)), 34);
         assert_eq!(ribbon(Dimensions::new(1, 1, 10)), 14);
     }

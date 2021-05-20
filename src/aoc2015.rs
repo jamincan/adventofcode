@@ -16,7 +16,7 @@ mod tests {
     #[test]
     fn day2() {
         let input = load(2015, 2).unwrap();
-        assert_eq!(day2::part1(&input), 1586300);
-        assert_eq!(day2::part2(&input), 3737498);
+        assert_eq!(day2::part1(&input).unwrap(), 1586300);
+        assert_eq!(day2::part2(&input).unwrap(), 3737498);
     }
 }
