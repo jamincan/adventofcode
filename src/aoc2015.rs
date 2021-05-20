@@ -9,8 +9,8 @@ mod tests {
     #[test]
     fn day1() {
         let input = load(2015, 1).unwrap();
-        assert_eq!(day1::part1(&input), 232);
-        assert_eq!(day1::part2(&input), 1783);
+        assert_eq!(day1::part1(&input).unwrap(), 232);
+        assert_eq!(day1::part2(&input).unwrap(), 1783);
     }
 
     #[test]

@@ -1,3 +1,5 @@
+use thiserror::Error;
+
 /*
 --- Day 1: Not Quite Lisp ---
 
@@ -32,7 +34,7 @@ For example:
 
 To what floor do the instructions take Santa?
 */
-pub fn part1(input: &str) -> i64 {
+pub fn part1(input: &str) -> Result<i64, ParseDirectionError> {
     // Since parse_directions returns -1 or 1 for each change in floor, summing
     // each direction should give the final floor
     parse_directions(input).sum()
@@ -51,17 +53,21 @@ For example:
 What is the position of the character that causes Santa to first enter the
 basement?
 */
-pub fn part2(input: &str) -> usize {
-    // Find when the cumulative total drops below 0 (corresponding to entering
-    // the basement)
-    parse_directions(input)
-        .scan(0, |acc, x| {
-            *acc += x;
-            Some(*acc)
-        })
-        .enumerate()
-        .find_map(|(i, total)| if total < 0 { Some(i + 1) } else { None })
-        .expect("Directions never take Santa into the basement.")
+pub fn part2(input: &str) -> Result<usize, Box<dyn std::error::Error>> {
+    // Iterate through directions, storing current floor
+    let mut floor = 0;
+    for (i, dir) in parse_directions(input).enumerate() {
+        // Adjust current floor and short-circuit to return any errors
+        match dir {
+            Ok(dir) => floor += dir,
+            Err(e) => return Err(e.into()),
+        }
+        // If floor goes below 0, short-circuit return
+        if floor < 0 {
+            return Ok(i + 1);
+        }
+    }
+    Err("Santa never enters the basement.".into())
 }
 
 /**
@@ -72,17 +78,24 @@ directions parsing them into numeric values.
 This function expects a well-formed input string and will panic if it
 encounters invalid characters or no data.
 */
-fn parse_directions(input: &str) -> impl Iterator<Item = i64> + '_ {
-    // Only parse the first line
-    let input = input.lines().next().expect("No input data found.");
+fn parse_directions(input: &str) -> impl Iterator<Item = Result<i64, ParseDirectionError>> + '_ {
+    // Take the first line, and then map the characters into integers
+    // representing movement between floors
+    input
+        .lines()
+        .take(1)
+        .flat_map(|l| l.chars())
+        .map(|ch| match ch {
+            '(' => Ok(1),
+            ')' => Ok(-1),
+            ch => Err(ParseDirectionError::InvalidCharacter(ch)),
+        })
+}
 
-    // Map the characters in the input to corresponding integers and panic if
-    // invalid
-    input.chars().map(|ch| match ch {
-        '(' => 1,
-        ')' => -1,
-        ch => panic!("Invalid character '{}' found.", ch),
-    })
+#[derive(Debug, Error)]
+pub enum ParseDirectionError {
+    #[error("Invalid character '{0}' found.")]
+    InvalidCharacter(char),
 }
 
 #[cfg(test)]
@@ -91,35 +104,34 @@ mod tests {
 
     #[test]
     fn part1_examples() {
-        assert_eq!(part1("(())"), 0);
-        assert_eq!(part1("()()"), 0);
-        assert_eq!(part1("((("), 3);
-        assert_eq!(part1("(()(()("), 3);
-        assert_eq!(part1("))((((("), 3);
-        assert_eq!(part1("())"), -1);
-        assert_eq!(part1("))("), -1);
-        assert_eq!(part1(")))"), -3);
-        assert_eq!(part1(")())())"), -3);
+        assert_eq!(part1("(())").unwrap(), 0);
+        assert_eq!(part1("()()").unwrap(), 0);
+        assert_eq!(part1("(((").unwrap(), 3);
+        assert_eq!(part1("(()(()(").unwrap(), 3);
+        assert_eq!(part1("))(((((").unwrap(), 3);
+        assert_eq!(part1("())").unwrap(), -1);
+        assert_eq!(part1("))(").unwrap(), -1);
+        assert_eq!(part1(")))").unwrap(), -3);
+        assert_eq!(part1(")())())").unwrap(), -3);
     }
 
     #[test]
     fn part2_examples() {
-        assert_eq!(part2(")"), 1);
-        assert_eq!(part2("()())"), 5);
+        assert_eq!(part2(")").unwrap(), 1);
+        assert_eq!(part2("()())").unwrap(), 5);
     }
 
     #[test]
     fn parse_direction_simple_inputs() {
         let mut dirs = parse_directions("()");
-        assert_eq!(dirs.next(), Some(1));
-        assert_eq!(dirs.next(), Some(-1));
-        assert_eq!(dirs.next(), None);
+        assert_eq!(dirs.next().unwrap().unwrap(), 1);
+        assert_eq!(dirs.next().unwrap().unwrap(), -1);
+        assert!(dirs.next().is_none());
     }
 
     #[test]
-    #[should_panic]
-    fn parse_direction_panics_on_invalid_input() {
+    fn parse_direction_returns_error_on_invalid_input() {
         let mut dirs = parse_directions("*");
-        dirs.next();
+        assert!(dirs.next().unwrap().is_err());
     }
 }
